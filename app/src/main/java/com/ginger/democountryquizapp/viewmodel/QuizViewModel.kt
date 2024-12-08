@@ -142,7 +142,7 @@ class QuizViewModel : ViewModel() {
     private fun loadQuestions() {
         val context = MyApplication.getAppContext()
         val jsonResponse = FileUtils.readJsonFromAssets(context, "questions.json")
-        questionList = parseJsonResponse(jsonResponse)
+        questionList = parseJsonResponse(jsonResponse!!)
     }
 
     // Parse the JSON response and create a list of questions
