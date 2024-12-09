@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -17,14 +18,18 @@ import com.ginger.democountryquizapp.viewmodel.QuizViewModel
 
 class QuizActivity : AppCompatActivity() {
 
+    private var isPaused: Boolean?=null
     private lateinit var binding: ActivityQuizBinding
     private lateinit var sharedPreferences: SharedPreferences
     private val viewModel: QuizViewModel by viewModels()
 
     private var currentQuestionIndex = 0
+    private var QuizStarted = 0
     private var questionTimer: CountDownTimer? = null
     private var isAnswerSelected = false
     private var remainingTime = 30 // Default time for each question
+    private var elapsedTime=0L
+    private var exit_time=0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,33 +55,57 @@ class QuizActivity : AppCompatActivity() {
         binding.option4.setOnClickListener { handleOptionSelection(3) }
 
         // Start quiz
-        startQuiz()
     }
 
     override fun onPause() {
         super.onPause()
+        isPaused=true
         saveQuizState()
         questionTimer?.cancel() // Stop the timer
     }
 
     override fun onResume() {
         super.onResume()
+        if (isPaused==true){
+            restoreQuizState()
+            elapsedTime =System.currentTimeMillis()-exit_time
+            elapsedTime=elapsedTime/1000
+            val index=elapsedTime/10
+            currentQuestionIndex= (currentQuestionIndex+index).toInt()
+            Log.d(currentQuestionIndex.toString(),"questionIndex")
+            isPaused=false
+        }
         if (remainingTime > 0) {
             startQuestionTimer(remainingTime)
         }
+        startQuiz()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isPaused=true
+    }
+
 
     private fun saveQuizState() {
         val editor = sharedPreferences.edit()
         editor.putInt("current_question_index", currentQuestionIndex)
         editor.putInt("remaining_time", remainingTime)
+        editor.putLong("exit_time", System.currentTimeMillis())
         editor.putBoolean("quiz_in_progress", true)
+        editor.putInt("QuizStarted", 1)
+        editor.putBoolean("isPaused", true)
         editor.apply()
+        Log.d(System.currentTimeMillis().toString(),"currentQuestionIndexNext")
+
     }
 
     private fun restoreQuizState() {
         currentQuestionIndex = sharedPreferences.getInt("current_question_index", 0)
+        QuizStarted = sharedPreferences.getInt("QuizStarted", 0)
+        isPaused = sharedPreferences.getBoolean("isPaused", false)
         remainingTime = sharedPreferences.getInt("remaining_time", 30)
+        exit_time = sharedPreferences.getLong("exit_time", 0L)
     }
 
     private fun loadQuestion(question: Question?) {
@@ -114,6 +143,7 @@ class QuizActivity : AppCompatActivity() {
                 val secondsLeft = (millisUntilFinished / 1000).toInt()
                 viewModel.updateTimer(secondsLeft.toLong())
                 remainingTime = secondsLeft
+                binding.questionNumber.text = "${currentQuestionIndex + 1}/15"
             }
 
             override fun onFinish() {
